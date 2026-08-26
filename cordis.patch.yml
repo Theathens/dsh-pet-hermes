@@ -1,0 +1,8 @@
+# dsh-pet-hermes bundle patch — registers the standalone Hermes-brained pet
+# (pet 2.0 beta) as its own plugin row, parallel to (not modifying) the
+# original @linxin666/dsh-pet. The single row mounts both halves: the host
+# side (pet registry + /api/pet-hermes/* routes + Hermes chat bridge) and the
+# browser side (the sprite + chat panel).
+- insert:
+    - id: pet-hermes
+      name: 'dsh-pet-hermes'
