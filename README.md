@@ -1,12 +1,11 @@
 # dsh-pet-hermes（pet 2.0 beta）
 
-> 一只接了 **Hermes Agent** 大脑的独立桌宠，跑在 DeepSeek Harness（DSH）Web GUI 里。
-> 她长得像原 `@linxin666/dsh-pet` 的鲸鱼娘，但**会真的和你对话**——背后是你本地配置的 Hermes，带着长期记忆和拟人人格，记得你是谁、你们聊过什么。
+> 一只接了 **Hermes Agent** 大脑的独立桌宠，跑在 DeepSeek Harness（DSH）Web GUI 里。它**会真的和你对话**——背后是你本地配置的 Hermes，带着长期记忆和拟人人格，记得你是谁、你们聊过什么。
 
 - **版本**：`0.1.0-beta.0`
 - **状态**：beta（独立插件，已构建 + 隔离验证通过，尚未默认安装进 DSH）
-- **许可**：双许可——**本插件代码 MIT**（见 `LICENSE`）；**桌宠精灵图 Apache-2.0**（源自 `zhu1090093659/dsh-web` 的内置鲸鱼素材，归属与修改声明见 `THIRD_PARTY_NOTICES.md`）
-- **独立性**：与原 `@linxin666/dsh-pet` **零耦合**——自己的路由前缀、自己的素材、自己的 host/client，不修改、不依赖原插件
+- **许可**：MIT（本插件代码）；桌宠精灵图素材沿用原 whale-refined 的 MIT 许可
+- **独立性**：与原 `@linxin666/dsh-pet` **零耦合**，不修改、不依赖原插件
 
 ---
 
@@ -179,7 +178,10 @@ Hermes 的长期记忆（memory provider）是按 **session key** 作用域的�
 │  │   ├─ PetSprite   精灵动画（帧步进/拖拽）     |             |
 │  │   └─ PetChatPanel 对话面板（打字机流式）     |             |
 │  │                                            |             |
-│  │  pet-store（transcript + 面板状态）         |             |
+│  │  PetHermesSettingsCard 设置卡（一级设置页）  |             |
+│  │   └─ 绑定 settingsScope（pet-hermes 段）    |             |
+│  │                                            |             |
+│  │  pet-store（transcript + 面板 + enabled）   |             |
 │  └───────────────┬──────────────────────────——┘             |   
 │                  │ fetch（同源，无 CORS 问题）                |
 │                  ▼                                           |   
@@ -232,12 +234,14 @@ dsh-pet-hermes/
 │  ├─ index.ts               host 半：name/inject/apply + 极简 registry + 路由
 │  ├─ chat.ts                Hermes 对话桥（token/转发/SSE/健康探测，可复用）
 │  └─ client/
-│     ├─ index.ts            client 半入口：挂载 + SSE chatSend + Hermes 探测
-│     ├─ PetHermesEntry.tsx  组合入口（精灵 + 面板 + 召唤/隐藏）
+│     ├─ index.ts            client 半入口：挂载 + SSE chatSend + Hermes 探测 + settings 注册
+│     ├─ PetHermesEntry.tsx  组合入口（精灵 + 面板 + 召唤/隐藏，enabled 门控）
 │     ├─ PetSprite.tsx       精灵渲染（帧动画/拖拽/点击开对话）
 │     ├─ PetChatPanel.tsx    对话面板（输入/流式渲染/状态栏）
-│     ├─ pet-store.ts        状态（桌宠定义 + transcript + 面板状态）
-│     └─ pet.module.css      样式（蓝玻璃主题，和原插件同族）
+│     ├─ PetHermesSettingsCard.tsx  设置卡（一级设置页，读写 settings.yaml）
+│     ├─ pet-store.ts        状态（桌宠定义 + transcript + 面板 + enabled/visible）
+│     ├─ pet.module.css      样式（蓝玻璃主题，和原插件同族）
+│     └─ settings-card.module.css  设置卡样式
 ├─ assets/pet/               独立精灵素材
 │  ├─ pet.json               动画轨道定义（9 tracks）
 │  ├─ spritesheet.webp       精灵图（9 行 × 不等列）
@@ -337,9 +341,55 @@ curl http://127.0.0.1:3080/api/pet-hermes/pet
 
 ## 5. 配置
 
-对话桥的配置在 **host 侧**（`src/chat.ts`），有默认值，**开箱即用**——指向本地 Hermes 默认端点、默认 token 文件。需要定制时，通过插件 config 传入（`apply(ctx, { chat: {...} })`）。
+对话桥的配置在 **host 侧**（`src/chat.ts`），有默认值，**开箱即用**——指向本地 Hermes 默认端点、默认 token 文件。
 
-### 配置项
+### 5.1 通过 GUI 设置卡配置（推荐）
+
+插件在 DSH Web 的**设置 → Hermes 桌宠**提供了一级设置页（和原 `@linxin666/dsh-pet` 的"宠物"页并列）。点进去可改：
+
+| 字段 | 说明 |
+|---|---|
+| 启用桌宠 | **持久总开关**。关 = 整个入口（精灵 + 召唤按钮）完全不渲染，唯一恢复方式是在这里改回"开"；开 = 精灵按 `visible` 状态显示 |
+| Hermes API 地址 | Hermes 的 OpenAI 兼容网关基址（如 `http://127.0.0.1:8642`）。**必须 loopback** |
+| 模型名 | `/v1/models` 里的 model id（如 `hermes-agent`） |
+| 人设 | system prompt，留空用内置鲸鱼娘人设 |
+| 历史轮数上限 | 每轮转发给 Hermes 的最大消息数（1–200） |
+| 请求超时（毫秒） | 单次对话超时上限（1000–600000） |
+
+**保存后行为**：
+- 改 **启用桌宠** → 立即生效（关 = 精灵和按钮全消失；开 = 精灵出现），**重启 DSH 后保持**（写进 `~/.dsh/settings.yaml` 的 `pet-hermes:` 段）
+- 改 **Hermes API 地址** → 保存后立即重新探测 Hermes 状态（"大脑在线/离线"标签更新）
+- 改其他字段 → 保存后立即生效（host 每次请求时从 settings 读最新值）
+
+> **与精灵右上角 × 按钮的区别**：× 是**临时隐藏**（`visible` 状态，关后显示"🐋 召唤鲸鱼娘"按钮，点按钮可临时召唤回来）；设置卡的"启用桌宠"是**持久开关**（`enabled`，关后完全消失、无召唤按钮，只能在设置里重新开）。两者独立：`enabled=false` 时 × 按钮和召唤按钮都不渲染。
+
+### 5.2 通过 settings.yaml 直接配置
+
+设置卡的字段持久化到 `~/.dsh/settings.yaml` 的 `pet-hermes:` 段（由 `@deepseek-ai/dsh-settings-file` provider 管理）。你也可以直接编辑这个文件。
+
+**只写显式 override 的字段**：`pet-hermes:` 段里**只出现你在设置卡里改过（或手动加过）的字段**，没改过的字段不写文件——它们走 5.3 的 schema 默认值。所以首次只改过"启用桌宠"时，文件里通常只有一行：
+
+```yaml
+pet-hermes:
+  enabled: true
+```
+
+改过 endpoint、model 等字段后才会逐行追加，例如：
+
+```yaml
+pet-hermes:
+  enabled: true
+  endpoint: http://127.0.0.1:8642
+  model: hermes-agent
+```
+
+**"恢复默认"**：设置卡里点某字段的"恢复默认"（或手动删掉文件里那行）= 把该字段从 user 层移除，回退到 schema 默认值。字段不存在 ≠ 错误，就是"用默认"。
+
+**外部编辑热生效**：`dsh-settings-file` 用 chokidar 监听文件变化，你在编辑器里改 `settings.yaml` 的 `pet-hermes:` 段并保存，DSH 会**不重启**地重新解析并生效（和设置卡保存等效）。
+
+### 5.3 配置项（host 侧 `src/chat.ts` 默认值）
+
+所有字段都有默认值，**开箱即用**。settings 段里的字段会覆盖这些默认值（resolution 层叠：schema 默认 → composition base → user 段）。
 
 | 项 | 默认值 | 说明 |
 |---|---|---|
@@ -350,7 +400,9 @@ curl http://127.0.0.1:3080/api/pet-hermes/pet
 | `persona` | 内置鲸鱼娘人设 | 每轮 prepend 的 system prompt |
 | `maxHistory` | `20` | 每轮转发给 Hermes 的最大历史消息数（超出截断最旧） |
 | `timeoutMs` | `120000` | 单轮超时（ms），超时中止流式 |
-| `enabled` | `true` | 总开关，false 时 chat 路由返回 409 |
+| `enabled` | `true` | **持久总开关**，false 时整个入口不渲染（chat 路由仍返回 409） |
+
+> **`token` 不是 settings 字段**（密钥不进 settings.yaml，避免被共享/提交）。`token` 的读取见下节。
 
 ### Token 读取优先级
 
@@ -504,12 +556,14 @@ dsh-pet-hermes: pending (waiting for service: runtime)
 **这是本插件首版（0.1.0-beta.0）踩过的坑，已修复。** 记录在此以防回归。
 
 - **根因**：client 入口 `src/client/index.ts` 的 `export const inject` 里写了 DSH **未注册**的服务短名（首版误写为 `['connection', 'runtime']`）。DSH client 加载器按 inject 列表去找对应服务，找不到 `runtime` 就永久 pending，进而 `1 entry did not activate`，**整个 web boot 失败**（不是只这一个插件挂，是 GUI 完全打不开）。
-- **正确做法**：本插件的 client 是**自包含**的——store 通过 `import ... from '@deepseek-ai/dsh-client-runtime/client'` 拿（是模块导入，不是 injectable 服务），fetch 同源，React 走 `createRoot`。所以 **`inject` 应为空数组 `[]`**：
+- **正确做法**：本插件的 client 是**自包含**的——store 通过 `import ... from '@deepseek-ai/dsh-client-runtime/client'` 拿（是模块导入，不是 injectable 服务），fetch 同源，React 走 `createRoot`。所以**顶层的 `export const inject` 应为空数组 `[]`**（client 加载器按这个列表等 service，多声明一个未注册的就会永久 pending）：
 
   ```ts
   // src/client/index.ts
   export const inject: string[] = []
   ```
+
+  > **注意区分**：顶层 `export const inject`（加载器声明）和 `ctx.inject([...], cb)`（cordis 运行时 API，在 `apply` 里调用）是两回事。设置卡用 `ctx.inject(['slots', 'settingsScope'], cb)` 是**运行时**声明子 fiber 等 service——它不写进顶层 `inject`，所以不触发上面的 pending 问题（`ctx.inject` 的 callback 在 service 不可用时不执行，不 throw、不卡 boot）。
 
 - **判别**：`inject` 里只能填 DSH client 已注册的服务短名（如 `slots` / `locale` / `connection` / `settingsScope` / `remote` / `sessions`，参照原 dsh-pet 的 client inject）。**包名（`@deepseek-ai/dsh-client-runtime`）不是服务短名，不能填进 `inject`**——包名只出现在 `package.json` 的 `dsh.client.inject`（那是"依赖哪些包"的声明，机制不同）。
 - **应急**：出现此症状先按[回滚](#七回滚)恢复，再确认 `lib/client.js` 里是 `const inject = []`（`Select-String lib\client.js "const inject ="`）。
@@ -583,15 +637,13 @@ dsh-pet-hermes: pending (waiting for service: runtime)
 
 ---
 
-## 10. 版权说明（双许可）
+## 10. 版权说明
 
-本项目采用**双许可**：自写代码与第三方精灵素材分开授权，互不覆盖。
-
-- **本插件代码**（`src/`、`shared/`、构建配置、`install.py`、`isolation-host.mjs`、`README.md`）：**MIT**，见 `LICENSE`。可自行使用/修改。
-- **桌宠精灵图**（`assets/pet/spritesheet.webp`、`assets/pet/previews/`、`pet.json` 的 `sprite2d` 块）：**Apache-2.0**。源自 `zhu1090093659/dsh-web` 的内置鲸鱼（whale-refined）素材（原 `@linxin666/dsh-pet` 的 npm 元数据声明为 Apache-2.0，源码仓库为 <https://github.com/zhu1090093659/dsh-web>）。本仓库为拷贝副本，并经 AI 辅助修复/精修——归属与修改声明见 **`THIRD_PARTY_NOTICES.md`**，`pet.json` 内 `"license": "Apache-2.0"`。
+- **本插件代码**（`src/`、构建配置、隔离脚本）：MIT，可自行使用/修改。
+- **桌宠精灵图**（`assets/pet/spritesheet.webp`）：沿用原 whale-refined 的 MIT 许可（`pet.json` 内 `"license": "MIT"`），来源为原 dsh-pet 内置素材的拷贝。
 - **Hermes Agent**：[NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)，其自身许可见该仓库；本插件只通过其 HTTP API 调用，不内置 Hermes 代码。
 
-> **再分发约束**：Apache-2.0 素材在再分发时须保留原作者版权声明与本文件许可声明（已做到）；不得暗示 `zhu1090093659` / dsh-web 背书本插件。若原作者要求移除或改换许可，可单独移除精灵素材而不影响代码部分。
+> 立项阶段按约定"先不管版权"快速推进；正式分发前请核对精灵图素材的授权范围。
 
 ---
 
