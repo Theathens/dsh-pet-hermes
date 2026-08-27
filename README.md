@@ -337,7 +337,16 @@ curl http://127.0.0.1:3080/api/pet-hermes/pet
 
 > 端口以你 DSH Web 实际监听为准（默认通常是 3080，以 `dsh --profile web` 启动时打印的 URL 为准）。
 
+
+### 标准安装
+```powershell
+dsh plugin --profile web add github:theathens/dsh-pet-hermes
+```
+之后把 Hermes API key 写入 ~/.dsh/profiles/web/node_modules/dsh-pet-hermes/token.txt，重启 DSH
+
 ---
+
+
 
 ## 5. 配置
 
