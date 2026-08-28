@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Build output (regenerate with `npm run build`)
+lib/
+
 # Secrets — the Hermes API key file lives here by default; never commit it
 token.txt
 
