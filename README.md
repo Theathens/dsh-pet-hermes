@@ -1,11 +1,12 @@
 # dsh-pet-hermes（pet 2.0 beta）
 
-> 一只接了 **Hermes Agent** 大脑的独立桌宠，跑在 DeepSeek Harness（DSH）Web GUI 里。它**会真的和你对话**——背后是你本地配置的 Hermes，带着长期记忆和拟人人格，记得你是谁、你们聊过什么。
+> 一只接了 **Hermes Agent** 大脑的独立桌宠，跑在 DeepSeek Harness（DSH）Web GUI 里。
+> 她长得像原 `@linxin666/dsh-pet` 的鲸鱼娘，但**会真的和你对话**——背后是你本地配置的 Hermes，带着长期记忆和拟人人格，记得你是谁、你们聊过什么。
 
 - **版本**：`0.1.0-beta.0`
 - **状态**：beta（独立插件，已构建 + 隔离验证通过，尚未默认安装进 DSH）
 - **许可**：MIT（本插件代码）；桌宠精灵图素材沿用原 whale-refined 的 MIT 许可
-- **独立性**：与原 `@linxin666/dsh-pet` **零耦合**，不修改、不依赖原插件
+- **独立性**：与原 `@linxin666/dsh-pet` **零耦合**——自己的路由前缀、自己的素材、自己的 host/client，不修改、不依赖原插件
 
 ---
 
@@ -337,16 +338,7 @@ curl http://127.0.0.1:3080/api/pet-hermes/pet
 
 > 端口以你 DSH Web 实际监听为准（默认通常是 3080，以 `dsh --profile web` 启动时打印的 URL 为准）。
 
-
-### 标准安装
-```powershell
-dsh plugin --profile web add github:theathens/dsh-pet-hermes
-```
-之后把 Hermes API key 写入 ~/.dsh/profiles/web/node_modules/dsh-pet-hermes/token.txt，重启 DSH
-
 ---
-
-
 
 ## 5. 配置
 
@@ -646,21 +638,13 @@ dsh-pet-hermes: pending (waiting for service: runtime)
 
 ---
 
-## 10. 版权说明与致谢
+## 10. 版权说明
 
-- **本插件代码**（`src/`、构建配置、隔离脚本）：MIT，详见 [LICENSE](LICENSE)，可自行使用/修改。
-- **桌宠精灵图与动画轨道**（`assets/pet/spritesheet.webp`、`pet.json`）：移植自 [dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT License, Copyright (c) 2026 PC2005-cloud）内置的 whale-refined 素材——精灵图、9 条动画轨道的帧划分与时长参数（cell 192×208、8 列 × 9 行）均沿用原项目，`pet.json` 内 `"license": "MIT"`。
+- **本插件代码**（`src/`、构建配置、隔离脚本）：MIT，可自行使用/修改。
+- **桌宠精灵图**（`assets/pet/spritesheet.webp`）：沿用原 whale-refined 的 MIT 许可（`pet.json` 内 `"license": "MIT"`），来源为原 dsh-pet 内置素材的拷贝。
 - **Hermes Agent**：[NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)，其自身许可见该仓库；本插件只通过其 HTTP API 调用，不内置 Hermes 代码。
 
-### 致谢
-
-本项目精灵素材与动画轨道设计移植自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（MIT License, Copyright (c) 2026 PC2005-cloud）：
-
-- `assets/pet/spritesheet.webp` 沿用原 whale-refined 精灵图
-- 9 种动画轨道的帧划分与时长沿用原项目参数
-- 对话桥 / Hermes 接入 / 设置卡 / 独立路由为本项目新增
-
-本项目基于 MIT License 发布，详见 [LICENSE](LICENSE)。
+> 立项阶段按约定"先不管版权"快速推进；正式分发前请核对精灵图素材的授权范围。
 
 ---
 
